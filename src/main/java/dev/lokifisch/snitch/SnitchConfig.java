@@ -14,7 +14,15 @@ import java.util.Map;
  */
 public final class SnitchConfig {
 
-    /** A single (friendly name -> translation key) probe target. */
+    /**
+     * One probe entry: a friendly mod name plus ALL translation keys that
+     * identify it. The player is flagged as soon as any key resolves.
+     */
+    public record Mod(String name, List<String> keys) {}
+
+    /**
+     * Flat view used by ProbeService: one (mod, key) pair per sign line.
+     */
     public record Key(String mod, String translationKey) {}
 
     public final int delayTicks;
@@ -35,6 +43,10 @@ public final class SnitchConfig {
     public final boolean logConsole;
     public final boolean logCleanPlayers;
 
+    /** Per-mod groupings (used for list/add/remove commands). */
+    public final List<Mod> mods;
+
+    /** Flat list of all (mod, key) pairs in probe order (used by ProbeService). */
     public final List<Key> keys;
 
     public SnitchConfig(FileConfiguration c) {
@@ -58,14 +70,22 @@ public final class SnitchConfig {
         this.logConsole = c.getBoolean("logging.console", true);
         this.logCleanPlayers = c.getBoolean("logging.log-clean-players", false);
 
+        this.mods = new ArrayList<>();
         this.keys = new ArrayList<>();
-        ConfigurationSection keySection = c.getConfigurationSection("keys");
-        if (keySection != null) {
-            Map<String, Object> raw = new LinkedHashMap<>(keySection.getValues(false));
-            for (Map.Entry<String, Object> e : raw.entrySet()) {
-                String value = String.valueOf(e.getValue());
-                if (value != null && !value.isBlank()) {
-                    this.keys.add(new Key(e.getKey(), value));
+
+        ConfigurationSection modsSection = c.getConfigurationSection("mods");
+        if (modsSection != null) {
+            for (String modName : modsSection.getKeys(false)) {
+                List<String> modKeys = modsSection.getStringList(modName);
+                List<String> validKeys = new ArrayList<>();
+                for (String k : modKeys) {
+                    if (k != null && !k.isBlank()) {
+                        validKeys.add(k);
+                        this.keys.add(new Key(modName, k));
+                    }
+                }
+                if (!validKeys.isEmpty()) {
+                    this.mods.add(new Mod(modName, validKeys));
                 }
             }
         }

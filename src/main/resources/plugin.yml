@@ -10,7 +10,7 @@ depend:
 commands:
   snitch:
     description: SNITCH admin commands
-    usage: /snitch <list|add <mod> <key>|remove <mod>|scan [player]|reload|info>
+    usage: /snitch <list|add <mod> <key>|remove <mod> <key>|removemod <mod>|scan [player]|reload|info>
     permission: snitch.admin
 
 permissions:

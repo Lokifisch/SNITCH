@@ -26,20 +26,30 @@ A single sign carries **four lines**, so keys are probed four at a time. The sca
 1. Install **[ProtocolLib](https://www.spigotmc.org/resources/protocollib.1997/)** (required).
 2. Drop `SNITCH-x.x.x.jar` into `plugins/`.
 3. Start the server — `plugins/SNITCH/config.yml` is generated with sensible defaults.
-4. Edit the `keys:` list (see below), then `/snitch reload`.
+4. Edit the `mods:` block (see below), then `/snitch reload`.
 
 **Requirements:** Paper/Spigot **1.21.x**, Java **21**, ProtocolLib.
 
-## Configuring keys
+## Configuring mods
 
-The default keys are *best-effort guesses*. For a reliable match, open each mod's `.jar` (it's just a zip), read `assets/<modid>/lang/en_us.json`, and copy the exact key. A wrong key simply never matches — there are **no false positives**.
+Each mod entry takes a list of translation keys. The player is flagged as soon as **any one** of the keys resolves — multiple keys per mod give more reliable detection if the client patches or removes a single key.
+
+To find the real keys for a mod, open its `.jar` (it's just a zip) and read `assets/<modid>/lang/en_us.json`. A wrong key simply never matches — there are **no false positives**.
 
 ```yaml
-keys:
-  Freecam: "key.freecam.toggle"
-  MeteorClient: "text.autoconfig.meteor-client.title"
-  Tweakeroo: "tweakeroo.gui.title.configs"
+mods:
+  Freecam:
+    - "key.freecam.toggle"
+    - "key.freecam.config.open"
+    - "key.freecam.controlPlayer.toggle"
+
+  MeteorClient:
+    - "key.meteor-client.open-gui"
+    - "key.meteor-client.open-commands"
+    - "key.category.meteor-client.meteor-client"
 ```
+
+> **Note:** Some mods (e.g. pure library mods like baritone-meteor) have no lang file and cannot be detected via this technique.
 
 ## Commands
 
@@ -47,14 +57,17 @@ All under `/snitch` (permission `snitch.admin`):
 
 | Command | Description |
 |---------|-------------|
-| `/snitch list` | List all configured probe keys |
-| `/snitch add <mod> <translation.key>` | Add/overwrite a key (persists + reloads) |
-| `/snitch remove <mod>` | Remove a key (persists + reloads) |
-| `/snitch scan [player]` | Run a scan now |
-| `/snitch reload` | Reload `config.yml` |
-| `/snitch info` | Show current settings |
+| `/snitch list` | Show all mods and their keys |
+| `/snitch add <mod> <translation.key>` | Add a key to a mod (creates mod if new, persists + reloads) |
+| `/snitch remove <mod> <translation.key>` | Remove one key from a mod (removes mod if no keys left) |
+| `/snitch removemod <mod>` | Remove an entire mod and all its keys |
+| `/snitch scan [player]` | Run a scan immediately |
+| `/snitch reload` | Reload `config.yml` from disk |
+| `/snitch info` | Show current settings summary |
 
 Players with `snitch.bypass` are never scanned.
+
+Tab completion works on all subcommands. `/snitch remove <mod>` also completes existing keys for that mod.
 
 ## Actions
 
@@ -75,9 +88,10 @@ mvn package
 
 ## Caveats
 
-- **Version sensitivity.** Client screen internals vary between Minecraft versions; if a batch never reports, tune `close-delay-ticks`. Built and tested against the 1.21 packet layout.
+- **Version sensitivity.** Client screen internals vary between Minecraft versions; if a batch never reports, tune `close-delay-ticks`. Built against the 1.21 packet layout.
 - **In-game scans** (`/snitch scan` on an already-loaded player) may briefly flash a sign editor. Join-time scans do not.
 - This is an exploit of a real client bug. Mojang may patch it, and patch mods can block it.
+- Mods with no lang file (pure libraries, mixins-only mods) cannot be detected via this technique.
 
 ## License
 

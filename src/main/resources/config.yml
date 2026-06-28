@@ -76,16 +76,25 @@ logging:
 #  mod's .jar and reading assets/<modid>/lang/en_us.json, then paste the exact
 #  key here. A wrong key simply never matches (no false positives).
 # ----------------------------------------------------------------------------
-keys:
-  Freecam: "key.freecam.toggle"
-  MeteorClient: "text.autoconfig.meteor-client.title"
-  Meteorologist: "meteorologist.hud.module"
-  AutoTotem: "key.autototem.toggle"
-  InventoryTweaks: "key.inventorytweaks.sort"
-  InventorySorter: "key.inventorysorter.sort"
-  HealthIndicators: "key.healthindicators.toggle"
-  AccurateBlockPlacement: "key.accurateblockplacement.toggle"
-  Tweakeroo: "tweakeroo.gui.title.configs"
-  Soundboard: "key.soundboard.open"
-  LiquidBounce: "menu.liquidbounce.title"
-  Wurst: "key.wurst.toggle"
+# ----------------------------------------------------------------------------
+#  MODS TO PROBE
+#
+#  Each entry is a mod name mapped to a list of translation keys.
+#  The player is flagged (and the mod name reported) as soon as ANY one of
+#  the keys resolves. Multiple keys give more reliable detection if the client
+#  patches or removes a single key.
+#
+#  All keys below are verified directly from each mod's en_us.json.
+# ----------------------------------------------------------------------------
+mods:
+  Freecam:
+    - "key.freecam.toggle"
+    - "key.freecam.config.open"
+    - "key.freecam.controlPlayer.toggle"
+
+  MeteorClient:
+    - "key.meteor-client.open-gui"
+    - "key.meteor-client.open-commands"
+    - "key.category.meteor-client.meteor-client"
+
+  # baritone-meteor has no lang file — cannot be detected via translation keys

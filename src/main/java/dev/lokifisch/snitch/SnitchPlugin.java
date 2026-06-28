@@ -73,25 +73,58 @@ public final class SnitchPlugin extends JavaPlugin {
     }
 
     /**
-     * Add or overwrite a probe key, persist it, and reload. Returns false if the
-     * mod name is unusable as a YAML path (dots/spaces would nest or break it).
+     * Add a translation key to a mod entry (creates the mod if it doesn't exist).
+     * Returns false if the mod name contains dots or spaces (would break the YAML path).
      */
     public boolean addKey(String mod, String translationKey) {
         if (mod.contains(".") || mod.contains(" ")) {
             return false;
         }
-        getConfig().set("keys." + mod, translationKey);
+        String path = "mods." + mod;
+        java.util.List<String> current = getConfig().getStringList(path);
+        if (!current.contains(translationKey)) {
+            current.add(translationKey);
+            getConfig().set(path, current);
+            saveConfig();
+            reloadSnitchConfig();
+        }
+        return true;
+    }
+
+    /**
+     * Remove one specific translation key from a mod.
+     * If the mod has no keys left after removal, the mod entry is also removed.
+     * Returns false if neither the mod nor the key was found.
+     */
+    public boolean removeKey(String mod, String translationKey) {
+        String path = "mods." + mod;
+        if (!getConfig().contains(path)) {
+            return false;
+        }
+        java.util.List<String> current = new java.util.ArrayList<>(getConfig().getStringList(path));
+        if (!current.remove(translationKey)) {
+            return false;
+        }
+        if (current.isEmpty()) {
+            getConfig().set(path, null);
+        } else {
+            getConfig().set(path, current);
+        }
         saveConfig();
         reloadSnitchConfig();
         return true;
     }
 
-    /** Remove a probe key by mod name. Returns false if it wasn't present. */
-    public boolean removeKey(String mod) {
-        if (!getConfig().contains("keys." + mod)) {
+    /**
+     * Remove an entire mod entry (all its keys).
+     * Returns false if the mod wasn't present.
+     */
+    public boolean removeMod(String mod) {
+        String path = "mods." + mod;
+        if (!getConfig().contains(path)) {
             return false;
         }
-        getConfig().set("keys." + mod, null);
+        getConfig().set(path, null);
         saveConfig();
         reloadSnitchConfig();
         return true;

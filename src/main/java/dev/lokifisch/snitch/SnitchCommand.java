@@ -12,11 +12,19 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-/** /snitch reload | list | add <mod> <key> | remove <mod> | scan [player] | info */
+/**
+ * /snitch list
+ * /snitch add    <mod> <translation.key>
+ * /snitch remove <mod> <translation.key>
+ * /snitch removemod <mod>
+ * /snitch scan   [player]
+ * /snitch reload
+ * /snitch info
+ */
 public final class SnitchCommand implements CommandExecutor, TabCompleter {
 
     private static final List<String> SUBS =
-            Arrays.asList("reload", "list", "add", "remove", "scan", "info");
+            Arrays.asList("list", "add", "remove", "removemod", "scan", "reload", "info");
 
     private final SnitchPlugin plugin;
 
@@ -27,102 +35,117 @@ public final class SnitchCommand implements CommandExecutor, TabCompleter {
     @Override
     public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command,
                              @NotNull String label, @NotNull String[] args) {
-        if (args.length == 0) {
-            usage(sender);
-            return true;
-        }
+        if (args.length == 0) { usage(sender); return true; }
 
         switch (args[0].toLowerCase()) {
-            case "reload" -> reload(sender);
-            case "list" -> list(sender);
-            case "add" -> add(sender, args);
-            case "remove" -> remove(sender, args);
-            case "scan" -> scan(sender, args);
-            case "info" -> info(sender);
-            default -> usage(sender);
+            case "reload"    -> reload(sender);
+            case "list"      -> list(sender);
+            case "add"       -> add(sender, args);
+            case "remove"    -> remove(sender, args);
+            case "removemod" -> removeMod(sender, args);
+            case "scan"      -> scan(sender, args);
+            case "info"      -> info(sender);
+            default          -> usage(sender);
         }
         return true;
     }
 
-    private void usage(CommandSender sender) {
-        sender.sendMessage("§e[SNITCH] commands:");
-        sender.sendMessage("§7  /snitch list §8- §7show all probe keys");
-        sender.sendMessage("§7  /snitch add <mod> <translation.key> §8- §7add a key");
-        sender.sendMessage("§7  /snitch remove <mod> §8- §7remove a key");
-        sender.sendMessage("§7  /snitch scan [player] §8- §7scan now");
-        sender.sendMessage("§7  /snitch reload §8- §7reload config");
-        sender.sendMessage("§7  /snitch info §8- §7show settings");
+    private void usage(CommandSender s) {
+        s.sendMessage("§e[SNITCH] commands:");
+        s.sendMessage("§7  /snitch list");
+        s.sendMessage("§7  /snitch add <mod> <translation.key>");
+        s.sendMessage("§7  /snitch remove <mod> <translation.key>");
+        s.sendMessage("§7  /snitch removemod <mod>");
+        s.sendMessage("§7  /snitch scan [player]");
+        s.sendMessage("§7  /snitch reload");
+        s.sendMessage("§7  /snitch info");
     }
 
-    private void reload(CommandSender sender) {
+    private void reload(CommandSender s) {
         plugin.reloadSnitchConfig();
-        sender.sendMessage("§a[SNITCH] Config reloaded. "
-                + plugin.config().keys.size() + " keys loaded.");
+        s.sendMessage("§a[SNITCH] Config reloaded. "
+                + plugin.config().mods.size() + " mods, "
+                + plugin.config().keys.size() + " keys.");
     }
 
-    private void list(CommandSender sender) {
-        List<SnitchConfig.Key> keys = plugin.config().keys;
-        if (keys.isEmpty()) {
-            sender.sendMessage("§e[SNITCH] No probe keys configured.");
+    private void list(CommandSender s) {
+        List<SnitchConfig.Mod> mods = plugin.config().mods;
+        if (mods.isEmpty()) {
+            s.sendMessage("§e[SNITCH] No mods configured.");
             return;
         }
-        sender.sendMessage("§e[SNITCH] " + keys.size() + " probe key(s):");
-        for (SnitchConfig.Key k : keys) {
-            sender.sendMessage("§7  - §f" + k.mod() + " §8= §7" + k.translationKey());
+        s.sendMessage("§e[SNITCH] " + mods.size() + " mod(s), "
+                + plugin.config().keys.size() + " key(s) total:");
+        for (SnitchConfig.Mod m : mods) {
+            s.sendMessage("§f  " + m.name() + "§8:");
+            for (String k : m.keys()) {
+                s.sendMessage("§7    - " + k);
+            }
         }
     }
 
-    private void add(CommandSender sender, String[] args) {
+    private void add(CommandSender s, String[] args) {
         if (args.length < 3) {
-            sender.sendMessage("§c[SNITCH] Usage: /snitch add <mod> <translation.key>");
+            s.sendMessage("§c[SNITCH] Usage: /snitch add <mod> <translation.key>");
             return;
         }
         String mod = args[1];
         String key = args[2];
         if (!plugin.addKey(mod, key)) {
-            sender.sendMessage("§c[SNITCH] Invalid mod name (no dots or spaces): " + mod);
+            s.sendMessage("§c[SNITCH] Invalid mod name (no dots or spaces): " + mod);
             return;
         }
-        sender.sendMessage("§a[SNITCH] Added §f" + mod + " §a= §7" + key
-                + " §a(" + plugin.config().keys.size() + " total).");
+        s.sendMessage("§a[SNITCH] Added key §7" + key + " §ato §f" + mod
+                + " §a(" + plugin.config().keys.size() + " keys total).");
     }
 
-    private void remove(CommandSender sender, String[] args) {
-        if (args.length < 2) {
-            sender.sendMessage("§c[SNITCH] Usage: /snitch remove <mod>");
+    private void remove(CommandSender s, String[] args) {
+        if (args.length < 3) {
+            s.sendMessage("§c[SNITCH] Usage: /snitch remove <mod> <translation.key>");
             return;
         }
         String mod = args[1];
-        if (!plugin.removeKey(mod)) {
-            sender.sendMessage("§c[SNITCH] No such key: " + mod);
+        String key = args[2];
+        if (!plugin.removeKey(mod, key)) {
+            s.sendMessage("§c[SNITCH] Key not found: " + key + " under mod " + mod);
             return;
         }
-        sender.sendMessage("§a[SNITCH] Removed §f" + mod
-                + " §a(" + plugin.config().keys.size() + " left).");
+        s.sendMessage("§a[SNITCH] Removed key §7" + key + " §afrom §f" + mod + "§a.");
     }
 
-    private void scan(CommandSender sender, String[] args) {
+    private void removeMod(CommandSender s, String[] args) {
+        if (args.length < 2) {
+            s.sendMessage("§c[SNITCH] Usage: /snitch removemod <mod>");
+            return;
+        }
+        String mod = args[1];
+        if (!plugin.removeMod(mod)) {
+            s.sendMessage("§c[SNITCH] Mod not found: " + mod);
+            return;
+        }
+        s.sendMessage("§a[SNITCH] Removed mod §f" + mod
+                + " §a(" + plugin.config().keys.size() + " keys remaining).");
+    }
+
+    private void scan(CommandSender s, String[] args) {
         Player target;
         if (args.length >= 2) {
             target = plugin.getServer().getPlayerExact(args[1]);
-            if (target == null) {
-                sender.sendMessage("§c[SNITCH] Player not found: " + args[1]);
-                return;
-            }
-        } else if (sender instanceof Player p) {
+            if (target == null) { s.sendMessage("§c[SNITCH] Player not found: " + args[1]); return; }
+        } else if (s instanceof Player p) {
             target = p;
         } else {
-            sender.sendMessage("§c[SNITCH] Console must specify a player: /snitch scan <player>");
+            s.sendMessage("§c[SNITCH] Console must specify a player: /snitch scan <player>");
             return;
         }
         plugin.probes().scan(target);
-        sender.sendMessage("§a[SNITCH] Scanning " + target.getName()
-                + " (an in-game scan may briefly flash a sign editor).");
+        s.sendMessage("§a[SNITCH] Scanning " + target.getName() + ".");
     }
 
-    private void info(CommandSender sender) {
+    private void info(CommandSender s) {
         SnitchConfig cfg = plugin.config();
-        sender.sendMessage("§e[SNITCH] §7keys=" + cfg.keys.size()
+        s.sendMessage("§e[SNITCH] §7mods=" + cfg.mods.size()
+                + " keys=" + cfg.keys.size()
                 + " delay=" + cfg.delayTicks + "t"
                 + " mode=" + actionString(cfg)
                 + " strikes=" + cfg.strikesBeforeAction);
@@ -144,19 +167,29 @@ public final class SnitchCommand implements CommandExecutor, TabCompleter {
             StringUtil.copyPartialMatches(args[0], SUBS, out);
             return out;
         }
+        String sub = args[0].toLowerCase();
+        List<String> modNames = plugin.config().mods.stream()
+                .map(SnitchConfig.Mod::name).toList();
+
         if (args.length == 2) {
-            String sub = args[0].toLowerCase();
             if (sub.equals("scan")) {
                 List<String> names = new ArrayList<>();
                 plugin.getServer().getOnlinePlayers().forEach(p -> names.add(p.getName()));
                 StringUtil.copyPartialMatches(args[1], names, out);
-            } else if (sub.equals("remove")) {
-                List<String> mods = new ArrayList<>();
-                plugin.config().keys.forEach(k -> mods.add(k.mod()));
-                StringUtil.copyPartialMatches(args[1], mods, out);
+            } else if (sub.equals("remove") || sub.equals("removemod") || sub.equals("add")) {
+                StringUtil.copyPartialMatches(args[1], modNames, out);
             }
             return out;
         }
-        return List.of();
+
+        // arg 3: for "remove <mod> <key>" — complete existing keys for that mod
+        if (args.length == 3 && sub.equals("remove")) {
+            String modName = args[1];
+            plugin.config().mods.stream()
+                    .filter(m -> m.name().equals(modName))
+                    .findFirst()
+                    .ifPresent(m -> StringUtil.copyPartialMatches(args[2], m.keys(), out));
+        }
+        return out;
     }
 }
