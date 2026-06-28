@@ -11,6 +11,7 @@ import org.jetbrains.annotations.NotNull;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 
 /**
  * /snitch list
@@ -144,19 +145,12 @@ public final class SnitchCommand implements CommandExecutor, TabCompleter {
 
     private void info(CommandSender s) {
         SnitchConfig cfg = plugin.config();
-        s.sendMessage("§e[SNITCH] §7mods=" + cfg.mods.size()
+        s.sendMessage("§e[SNITCH] §7server=" + cfg.serverName
+                + " mods=" + cfg.mods.size()
                 + " keys=" + cfg.keys.size()
-                + " delay=" + cfg.delayTicks + "t"
-                + " mode=" + actionString(cfg)
-                + " strikes=" + cfg.strikesBeforeAction);
-    }
-
-    private static String actionString(SnitchConfig cfg) {
-        List<String> parts = new ArrayList<>();
-        if (cfg.actionLog) parts.add("LOG");
-        if (cfg.actionKick) parts.add("KICK");
-        if (cfg.actionCommand) parts.add("COMMAND");
-        return String.join("+", parts);
+                + " delay=" + cfg.delayTicks + "t");
+        cfg.flagActions.forEach((flag, action) ->
+                s.sendMessage("§7  flag " + flag + " → " + action));
     }
 
     @Override

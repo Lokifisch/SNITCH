@@ -43,7 +43,9 @@ public final class SignUpdateListener extends PacketAdapter {
         String[] lines = event.getPacket().getStringArrays().read(0);
         // This was a fabricated sign; never let the server process it as a real edit.
         event.setCancelled(true);
-        plugin.probes().clearSession(uuid);
+        // Advance to the next queued batch (or clear if none remain).
+        plugin.getServer().getScheduler().runTask(plugin,
+                () -> plugin.probes().onBatchComplete(uuid));
 
         if (lines == null) {
             return;

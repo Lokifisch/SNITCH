@@ -2,6 +2,7 @@ package dev.lokifisch.snitch;
 
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
+import org.bukkit.BanList;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 
@@ -11,62 +12,95 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Decides what happens when a banned key resolves on a client: counts strikes
- * (the video notes Donut only bans on the second connect) and applies the
- * configured action(s) -- log, kick, and/or run console commands.
+ * Tracks per-player, per-mod flag counts and fires the configured action for
+ * each flag number:
+ *
+ *   flag 1 → action from config (default KICK)
+ *   flag 2 → action from config (default BAN)
+ *   any other count → LOG (unless configured)
  */
 public final class DetectionHandler {
 
     private final SnitchPlugin plugin;
-    // player -> (mod -> strike count). Strikes persist for the server session.
-    private final Map<UUID, Map<String, Integer>> strikes = new ConcurrentHashMap<>();
+    // player -> (mod -> flag count)
+    private final Map<UUID, Map<String, Integer>> flags = new ConcurrentHashMap<>();
 
     public DetectionHandler(SnitchPlugin plugin) {
         this.plugin = plugin;
     }
 
     public void flag(Player player, String mod, String key, String evidence) {
-        if (!player.isOnline()) {
-            return;
-        }
+        if (!player.isOnline()) return;
+
         SnitchConfig cfg = plugin.config();
 
-        int count = strikes.computeIfAbsent(player.getUniqueId(), k -> new HashMap<>())
+        int count = flags.computeIfAbsent(player.getUniqueId(), k -> new HashMap<>())
                 .merge(mod, 1, Integer::sum);
 
         if (cfg.logConsole) {
-            plugin.getLogger().warning("[SNITCH] " + player.getName() + " flagged for " + mod
-                    + " (key=" + key + ", reported=\"" + evidence + "\", strike " + count + "/"
-                    + cfg.strikesBeforeAction + ")");
+            plugin.getLogger().warning("[SNITCH] " + player.getName()
+                    + " flagged for " + mod
+                    + " (key=" + key + ", reported=\"" + evidence + "\""
+                    + ", flag " + count + ")");
         }
 
-        if (count < cfg.strikesBeforeAction) {
-            return;
-        }
-
-        if (cfg.actionCommand) {
+        // Run any configured console commands regardless of the flag action.
+        if (!cfg.commands.isEmpty()) {
             for (String raw : cfg.commands) {
-                String cmd = raw
-                        .replace("%player%", player.getName())
-                        .replace("%mod%", mod)
-                        .replace("%key%", key)
-                        .replace("%evidence%", evidence);
+                String cmd = fill(raw, player.getName(), mod, key, evidence, count, cfg.serverName);
                 Bukkit.dispatchCommand(Bukkit.getConsoleSender(), cmd);
             }
         }
 
-        if (cfg.actionKick) {
-            String msg = cfg.kickMessage.replace("%mod%", mod).replace("%key%", key);
-            Component kick = LegacyComponentSerializer.legacyAmpersand().deserialize(msg);
-            player.kick(kick);
+        SnitchConfig.FlagAction action = cfg.actionFor(count);
+
+        switch (action) {
+            case KICK -> kick(player, mod, cfg);
+            case BAN  -> ban(player, mod, cfg);
+            case LOG  -> {} // already logged above
         }
     }
 
+    private void kick(Player player, String mod, SnitchConfig cfg) {
+        if (!player.isOnline()) return;
+        String raw = cfg.kickMessage
+                .replace("%mod%", mod)
+                .replace("%server%", cfg.serverName);
+        Component msg = LegacyComponentSerializer.legacyAmpersand().deserialize(raw);
+        player.kick(msg);
+    }
+
+    private void ban(Player player, String mod, SnitchConfig cfg) {
+        if (!player.isOnline()) return;
+        // Add to the server ban list before kicking so the kick message shows.
+        String reason = cfg.banMessage
+                .replace("%mod%", mod)
+                .replace("%server%", cfg.serverName);
+        // Strip colour codes for the ban reason (stored as plain text).
+        String plainReason = reason.replaceAll("(?i)&[0-9a-fk-or]", "");
+        Bukkit.getBanList(BanList.Type.NAME)
+                .addBan(player.getName(), plainReason, (java.util.Date) null, "SNITCH");
+
+        Component msg = LegacyComponentSerializer.legacyAmpersand().deserialize(reason);
+        player.kick(msg);
+    }
+
+    private static String fill(String template, String player, String mod,
+                                String key, String evidence, int flag, String server) {
+        return template
+                .replace("%player%", player)
+                .replace("%mod%", mod)
+                .replace("%key%", key)
+                .replace("%evidence%", evidence)
+                .replace("%flag%", String.valueOf(flag))
+                .replace("%server%", server);
+    }
+
     public void reset(UUID player) {
-        strikes.remove(player);
+        flags.remove(player);
     }
 
     public void resetAll() {
-        strikes.clear();
+        flags.clear();
     }
 }

@@ -19,20 +19,56 @@ For each player, SNITCH runs this packet sequence (mirroring the technique from 
 5. **Update Sign (inbound)** → SNITCH compares each line to its fallback. A mismatch = the key resolved = mod detected.
 6. **Block Change** → revert the fake sign to the real block.
 
-A single sign carries **four lines**, so keys are probed four at a time. The scan fires shortly after join, during the terrain-loading screen, so the editor GUI is never seen.
+A single sign carries **four lines**, so keys are probed four at a time. Batches are sent **sequentially** — the next batch only fires after the previous one gets a response. This prevents key mismatches when multiple mods are installed.
+
+The scan fires shortly after join, during the terrain-loading screen, so the editor GUI is never seen.
 
 ## Install
 
 1. Install **[ProtocolLib](https://www.spigotmc.org/resources/protocollib.1997/)** (required).
 2. Drop `SNITCH-x.x.x.jar` into `plugins/`.
-3. Start the server — `plugins/SNITCH/config.yml` is generated with sensible defaults.
-4. Edit the `mods:` block (see below), then `/snitch reload`.
+3. Start the server — `plugins/SNITCH/config.yml` is generated with defaults.
+4. Set your `server-name`, configure `mods:`, then `/snitch reload`.
 
 **Requirements:** Paper/Spigot **1.21.x**, Java **21**, ProtocolLib.
 
-## Configuring mods
+## Configuration
 
-Each mod entry takes a list of translation keys. The player is flagged as soon as **any one** of the keys resolves — multiple keys per mod give more reliable detection if the client patches or removes a single key.
+### Server name
+
+Shown in kick and ban messages via the `%server%` placeholder:
+
+```yaml
+server-name: "My Server"
+```
+
+### Flag actions
+
+Each time a player is caught with the same mod, their flag count for that mod increases. You configure what happens at each count:
+
+```yaml
+action:
+  flags:
+    1: KICK   # first detection → kick
+    2: BAN    # second detection → permanent ban
+  # Any count not listed defaults to LOG (console only).
+
+  kick-message: "&cYou have been kicked from &e%server%&c: &f%mod% &cis not allowed."
+  ban-message:  "&cYou have been permanently banned from &e%server%&c for using &f%mod%&c."
+```
+
+Supported actions: `LOG`, `KICK`, `BAN`.
+
+Optional console commands run on every detection regardless of the flag action. Placeholders: `%player%`, `%mod%`, `%key%`, `%evidence%`, `%flag%`, `%server%`:
+
+```yaml
+  commands:
+    - "tellraw @a[permission=snitch.admin] {\"text\":\"[SNITCH] %player% flagged for %mod% (flag %flag%)\",\"color\":\"red\"}"
+```
+
+### Configuring mods
+
+Each mod entry maps a friendly name to a list of translation keys. The player is flagged as soon as **any one** key resolves — multiple keys per mod give more reliable detection.
 
 To find the real keys for a mod, open its `.jar` (it's just a zip) and read `assets/<modid>/lang/en_us.json`. A wrong key simply never matches — there are **no false positives**.
 
@@ -49,7 +85,7 @@ mods:
     - "key.category.meteor-client.meteor-client"
 ```
 
-> **Note:** Some mods (e.g. pure library mods like baritone-meteor) have no lang file and cannot be detected via this technique.
+> **Note:** Mods with no lang file (pure library/mixin mods like baritone-meteor) cannot be detected via this technique.
 
 ## Commands
 
@@ -59,25 +95,13 @@ All under `/snitch` (permission `snitch.admin`):
 |---------|-------------|
 | `/snitch list` | Show all mods and their keys |
 | `/snitch add <mod> <translation.key>` | Add a key to a mod (creates mod if new, persists + reloads) |
-| `/snitch remove <mod> <translation.key>` | Remove one key from a mod (removes mod if no keys left) |
+| `/snitch remove <mod> <translation.key>` | Remove one key from a mod (removes mod entry if no keys left) |
 | `/snitch removemod <mod>` | Remove an entire mod and all its keys |
 | `/snitch scan [player]` | Run a scan immediately |
 | `/snitch reload` | Reload `config.yml` from disk |
-| `/snitch info` | Show current settings summary |
+| `/snitch info` | Show server name, mod/key count, and configured flag actions |
 
-Players with `snitch.bypass` are never scanned.
-
-Tab completion works on all subcommands. `/snitch remove <mod>` also completes existing keys for that mod.
-
-## Actions
-
-When a banned key resolves, SNITCH applies the configured `action.mode` — any combination of:
-
-- **LOG** — write the detection to the console.
-- **KICK** — disconnect the player with `kick-message`.
-- **COMMAND** — run console commands with `%player%`, `%mod%`, `%key%`, `%evidence%` placeholders.
-
-`strikes-before-action` lets you act only after N detections of the same mod (the original technique only banned on the *second* connect).
+Players with `snitch.bypass` are never scanned. Tab completion works on all subcommands.
 
 ## Building
 
@@ -88,10 +112,10 @@ mvn package
 
 ## Caveats
 
-- **Version sensitivity.** Client screen internals vary between Minecraft versions; if a batch never reports, tune `close-delay-ticks`. Built against the 1.21 packet layout.
+- **Version sensitivity.** Built against the 1.21 packet layout. If a batch never reports, tune `close-delay-ticks` in the config.
 - **In-game scans** (`/snitch scan` on an already-loaded player) may briefly flash a sign editor. Join-time scans do not.
-- This is an exploit of a real client bug. Mojang may patch it, and patch mods can block it.
-- Mods with no lang file (pure libraries, mixins-only mods) cannot be detected via this technique.
+- This is an exploit of a real client bug. Mojang may patch it, and client-side patch mods can block it.
+- Mods with no lang file (pure libraries, mixins-only) cannot be detected via this technique.
 
 ## License
 

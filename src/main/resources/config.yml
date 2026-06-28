@@ -1,90 +1,64 @@
 # ============================================================================
 #  SNITCH  -  Server-side Notifier Inspecting Translation To Catch Hackers
-# ----------------------------------------------------------------------------
-#  Detects client-side mods (and resource packs) by abusing MC-265322, the
-#  sign-translation vulnerability described in the video:
-#
-#    1. Send a throwaway sign block to the client.
-#    2. Put a mod's translation key into the sign, with a "fallback" word.
-#    3. Open the sign editor, then force it closed.
-#    4. The client sends back the RESOLVED text. If it differs from the
-#       fallback, the translation key exists -> the mod/resource pack is
-#       present, and we flag the player.
-#
-#  NOTE: This works during the terrain-loading screen on join (the player
-#  never sees the sign GUI). If you scan an already-loaded player you may see
-#  a brief sign-editor flicker -- keep delay-ticks low so it fires while the
-#  client is still loading in.
 # ============================================================================
+
+# Name shown in kick/ban messages (%server% placeholder).
+server-name: "My Server"
 
 detection:
   # Ticks to wait after a player joins before scanning (20 ticks = 1 second).
-  # Keep this small so it lands during the loading screen.
   delay-ticks: 40
 
   # Re-scan every player on this interval. 0 disables periodic re-scanning.
   rescan-interval-ticks: 0
 
-  # The throwaway sign is placed this many blocks below the player's feet so
-  # it is never visible. It is reverted immediately after the probe.
+  # The throwaway sign is placed this many blocks below the player's feet.
   probe-y-offset: -3
 
-  # Ticks between sending the open-editor packet and the close packet that
-  # makes the client report the resolved text.
+  # Ticks between sending the open-editor packet and the close packet.
   close-delay-ticks: 2
 
   # Ticks after the close packet before the fake block is reverted.
   revert-delay-ticks: 4
 
-  # Ticks between consecutive sign batches (each sign carries up to 4 keys).
-  batch-spacing-ticks: 8
-
   # Active probe sessions older than this (ticks) are discarded.
   session-timeout-ticks: 100
 
 action:
-  # LOG    - only print/console-log detections
-  # KICK   - disconnect the player
-  # COMMAND- run the configured console commands
-  # You may combine modes with a comma, e.g. "LOG,COMMAND".
-  mode: LOG
+  # What happens at each flag count (per player, per mod).
+  # Supported actions: LOG, KICK, BAN
+  #   LOG  - print to console only
+  #   KICK - disconnect the player
+  #   BAN  - kick and add to the server ban list
+  # Any flag count not listed here defaults to LOG.
+  flags:
+    1: KICK
+    2: BAN
 
-  # The video notes Donut only bans on the SECOND connection with a banned
-  # mod. Set how many separate detections of the SAME mod are required before
-  # the action fires. 1 = act on first detection.
-  strikes-before-action: 1
+  # Message sent to the player when kicked. Supports & colour codes.
+  # Placeholders: %mod%, %server%
+  kick-message: "&cYou have been kicked from &e%server%&c: &f%mod% &cis not allowed."
 
-  # Used when mode includes KICK. Supports legacy '&' colour codes.
-  kick-message: "&cDisconnected: the mod &e%mod%&c is not allowed on this server."
+  # Message sent to the player when banned.
+  # Placeholders: %mod%, %server%
+  ban-message: "&cYou have been permanently banned from &e%server%&c for using &f%mod%&c."
 
-  # Used when mode includes COMMAND. Run from console. Placeholders:
-  #   %player% %mod% %key% %evidence%
-  commands:
-    - "tellraw @a[permission=snitch.admin] {\"text\":\"[SNITCH] %player% flagged for %mod%\",\"color\":\"red\"}"
+  # Optional console commands to run on any detection (regardless of flag action).
+  # Placeholders: %player%, %mod%, %key%, %evidence%, %flag%, %server%
+  commands: []
 
 logging:
   # Print every detection to the server console.
   console: true
-  # Print a line for vanilla/clean players too (useful while tuning).
+  # Print a line for clean players too (useful while tuning).
   log-clean-players: false
 
 # ----------------------------------------------------------------------------
-#  KEYS TO PROBE   ( friendly mod name : translation key )
-# ----------------------------------------------------------------------------
-#  These are the categories the video says Donut SMP scans for. The keys below
-#  are best-effort defaults -- VERIFY the real key for each mod by opening the
-#  mod's .jar and reading assets/<modid>/lang/en_us.json, then paste the exact
-#  key here. A wrong key simply never matches (no false positives).
-# ----------------------------------------------------------------------------
-# ----------------------------------------------------------------------------
 #  MODS TO PROBE
 #
-#  Each entry is a mod name mapped to a list of translation keys.
-#  The player is flagged (and the mod name reported) as soon as ANY one of
-#  the keys resolves. Multiple keys give more reliable detection if the client
-#  patches or removes a single key.
-#
-#  All keys below are verified directly from each mod's en_us.json.
+#  Each mod entry maps a friendly name to a list of translation keys.
+#  The player is flagged as soon as ANY one key resolves.
+#  Keys are verified directly from each mod's assets/<modid>/lang/en_us.json.
 # ----------------------------------------------------------------------------
 mods:
   Freecam:
