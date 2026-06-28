@@ -18,5 +18,14 @@ permissions:
     description: Manage SNITCH and trigger manual scans
     default: op
   snitch.bypass:
-    description: Players with this permission are never scanned
+    description: Bypass all SNITCH scanning and detection — no probes sent, no actions fired
+    default: false
+    children:
+      snitch.bypass.scan: true
+      snitch.bypass.action: true
+  snitch.bypass.scan:
+    description: Bypass the probe scan (no sign packets sent)
+    default: false
+  snitch.bypass.action:
+    description: Bypass detection actions (probes may still run but no kick/ban fires)
     default: false

@@ -101,7 +101,7 @@ public final class ProbeService {
 
     /** Kick off a full scan of a player: every configured key, four per sign. */
     public void scan(Player player) {
-        if (player.hasPermission("snitch.bypass")) return;
+        if (player.hasPermission("snitch.bypass.scan")) return;
 
         List<SnitchConfig.Key> keys = plugin.config().keys;
         if (keys.isEmpty()) return;

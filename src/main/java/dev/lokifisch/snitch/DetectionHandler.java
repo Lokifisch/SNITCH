@@ -31,6 +31,7 @@ public final class DetectionHandler {
 
     public void flag(Player player, String mod, String key, String evidence) {
         if (!player.isOnline()) return;
+        if (player.hasPermission("snitch.bypass.action")) return;
 
         SnitchConfig cfg = plugin.config();
 
