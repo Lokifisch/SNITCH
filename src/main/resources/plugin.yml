@@ -1,0 +1,22 @@
+name: SNITCH
+version: '${project.version}'
+main: dev.lokifisch.snitch.SnitchPlugin
+api-version: '1.21'
+author: lokifisch
+description: Server-side Notifier Inspecting Translation To Catch Hackers. Detects client mods via the MC-265322 sign-translation exploit.
+depend:
+  - ProtocolLib
+
+commands:
+  snitch:
+    description: SNITCH admin commands
+    usage: /snitch <list|add <mod> <key>|remove <mod>|scan [player]|reload|info>
+    permission: snitch.admin
+
+permissions:
+  snitch.admin:
+    description: Manage SNITCH and trigger manual scans
+    default: op
+  snitch.bypass:
+    description: Players with this permission are never scanned
+    default: false

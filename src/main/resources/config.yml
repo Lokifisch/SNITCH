@@ -1,0 +1,91 @@
+# ============================================================================
+#  SNITCH  -  Server-side Notifier Inspecting Translation To Catch Hackers
+# ----------------------------------------------------------------------------
+#  Detects client-side mods (and resource packs) by abusing MC-265322, the
+#  sign-translation vulnerability described in the video:
+#
+#    1. Send a throwaway sign block to the client.
+#    2. Put a mod's translation key into the sign, with a "fallback" word.
+#    3. Open the sign editor, then force it closed.
+#    4. The client sends back the RESOLVED text. If it differs from the
+#       fallback, the translation key exists -> the mod/resource pack is
+#       present, and we flag the player.
+#
+#  NOTE: This works during the terrain-loading screen on join (the player
+#  never sees the sign GUI). If you scan an already-loaded player you may see
+#  a brief sign-editor flicker -- keep delay-ticks low so it fires while the
+#  client is still loading in.
+# ============================================================================
+
+detection:
+  # Ticks to wait after a player joins before scanning (20 ticks = 1 second).
+  # Keep this small so it lands during the loading screen.
+  delay-ticks: 40
+
+  # Re-scan every player on this interval. 0 disables periodic re-scanning.
+  rescan-interval-ticks: 0
+
+  # The throwaway sign is placed this many blocks below the player's feet so
+  # it is never visible. It is reverted immediately after the probe.
+  probe-y-offset: -3
+
+  # Ticks between sending the open-editor packet and the close packet that
+  # makes the client report the resolved text.
+  close-delay-ticks: 2
+
+  # Ticks after the close packet before the fake block is reverted.
+  revert-delay-ticks: 4
+
+  # Ticks between consecutive sign batches (each sign carries up to 4 keys).
+  batch-spacing-ticks: 8
+
+  # Active probe sessions older than this (ticks) are discarded.
+  session-timeout-ticks: 100
+
+action:
+  # LOG    - only print/console-log detections
+  # KICK   - disconnect the player
+  # COMMAND- run the configured console commands
+  # You may combine modes with a comma, e.g. "LOG,COMMAND".
+  mode: LOG
+
+  # The video notes Donut only bans on the SECOND connection with a banned
+  # mod. Set how many separate detections of the SAME mod are required before
+  # the action fires. 1 = act on first detection.
+  strikes-before-action: 1
+
+  # Used when mode includes KICK. Supports legacy '&' colour codes.
+  kick-message: "&cDisconnected: the mod &e%mod%&c is not allowed on this server."
+
+  # Used when mode includes COMMAND. Run from console. Placeholders:
+  #   %player% %mod% %key% %evidence%
+  commands:
+    - "tellraw @a[permission=snitch.admin] {\"text\":\"[SNITCH] %player% flagged for %mod%\",\"color\":\"red\"}"
+
+logging:
+  # Print every detection to the server console.
+  console: true
+  # Print a line for vanilla/clean players too (useful while tuning).
+  log-clean-players: false
+
+# ----------------------------------------------------------------------------
+#  KEYS TO PROBE   ( friendly mod name : translation key )
+# ----------------------------------------------------------------------------
+#  These are the categories the video says Donut SMP scans for. The keys below
+#  are best-effort defaults -- VERIFY the real key for each mod by opening the
+#  mod's .jar and reading assets/<modid>/lang/en_us.json, then paste the exact
+#  key here. A wrong key simply never matches (no false positives).
+# ----------------------------------------------------------------------------
+keys:
+  Freecam: "key.freecam.toggle"
+  MeteorClient: "text.autoconfig.meteor-client.title"
+  Meteorologist: "meteorologist.hud.module"
+  AutoTotem: "key.autototem.toggle"
+  InventoryTweaks: "key.inventorytweaks.sort"
+  InventorySorter: "key.inventorysorter.sort"
+  HealthIndicators: "key.healthindicators.toggle"
+  AccurateBlockPlacement: "key.accurateblockplacement.toggle"
+  Tweakeroo: "tweakeroo.gui.title.configs"
+  Soundboard: "key.soundboard.open"
+  LiquidBounce: "menu.liquidbounce.title"
+  Wurst: "key.wurst.toggle"
