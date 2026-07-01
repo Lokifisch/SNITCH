@@ -30,7 +30,7 @@ The scan fires shortly after join, during the terrain-loading screen, so the edi
 3. Start the server — `plugins/SNITCH/config.yml` is generated with defaults.
 4. Set your `server-name`, configure `mods:`, then `/snitch reload`.
 
-**Requirements:** Paper/Spigot **1.21.x**, Java **21**, ProtocolLib.
+**Requirements:** Paper/Spigot **26.1.x**, Java **21**, ProtocolLib.
 
 ## Configuration
 
@@ -112,7 +112,7 @@ mvn package
 
 ## Caveats
 
-- **Version sensitivity.** Built against the 1.21 packet layout. If a batch never reports, tune `close-delay-ticks` in the config.
+- **Version sensitivity.** Built against the 26.1 packet layout. If a batch never reports, tune `close-delay-ticks` in the config.
 - **In-game scans** (`/snitch scan` on an already-loaded player) may briefly flash a sign editor. Join-time scans do not.
 - This is an exploit of a real client bug. Mojang may patch it, and client-side patch mods can block it.
 - Mods with no lang file (pure libraries, mixins-only) cannot be detected via this technique.
