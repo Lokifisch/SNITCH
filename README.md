@@ -30,7 +30,7 @@ The scan fires shortly after join, during the terrain-loading screen, so the edi
 3. Start the server — `plugins/SNITCH/config.yml` is generated with defaults.
 4. Set your `server-name`, configure `mods:`, then `/snitch reload`.
 
-**Requirements:** Paper/Spigot **26.1.x**, Java **21**, ProtocolLib.
+**Requirements:** Paper/Spigot **26.1.x**, Java **25**, ProtocolLib.
 
 ## Configuration
 
