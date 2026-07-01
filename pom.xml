@@ -6,7 +6,7 @@
 
     <groupId>dev.lokifisch</groupId>
     <artifactId>snitch</artifactId>
-    <version>1.0.0</version>
+    <version>1.1.0</version>
     <packaging>jar</packaging>
 
     <name>SNITCH</name>
@@ -43,6 +43,14 @@
             <groupId>com.comphenix.protocol</groupId>
             <artifactId>ProtocolLib</artifactId>
             <version>5.3.0</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- Gson: already bundled with the Paper/Spigot server, used here to parse the GitHub releases API -->
+        <dependency>
+            <groupId>com.google.code.gson</groupId>
+            <artifactId>gson</artifactId>
+            <version>2.10.1</version>
             <scope>provided</scope>
         </dependency>
     </dependencies>

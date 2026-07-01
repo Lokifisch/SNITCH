@@ -53,6 +53,19 @@ logging:
   # Print a line for clean players too (useful while tuning).
   log-clean-players: false
 
+update-checker:
+  # Check https://github.com/Lokifisch/SNITCH/releases for a newer version.
+  enabled: true
+
+  # When a newer release with a .jar asset is found, download it into Bukkit's
+  # update folder (plugins/update/) so it replaces the running jar automatically
+  # the next time the server restarts. If false, only a console/op notice is shown.
+  auto-update: true
+
+  # How often to re-check for updates, in ticks (20 ticks = 1 second).
+  # A check also always runs once on startup/reload. 0 disables periodic re-checks.
+  check-interval-ticks: 432000
+
 # ----------------------------------------------------------------------------
 #  MODS TO PROBE
 #

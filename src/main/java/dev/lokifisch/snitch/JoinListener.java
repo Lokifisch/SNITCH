@@ -29,6 +29,13 @@ public final class JoinListener implements Listener {
                 plugin.probes().scan(p);
             }
         }, plugin.config().delayTicks);
+
+        Player player = event.getPlayer();
+        if (player.hasPermission("snitch.admin") && plugin.updateChecker().isUpdateAvailable()) {
+            UpdateChecker checker = plugin.updateChecker();
+            player.sendMessage("§e[SNITCH] Update available: §fv" + checker.getLatestVersion()
+                    + " §7(currently v" + checker.getCurrentVersion() + ") - §7" + checker.getReleaseUrl());
+        }
     }
 
     @EventHandler

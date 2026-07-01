@@ -41,6 +41,10 @@ public final class SnitchConfig {
     public final boolean logConsole;
     public final boolean logCleanPlayers;
 
+    public final boolean updateCheckEnabled;
+    public final boolean updateAutoUpdate;
+    public final int updateCheckIntervalTicks;
+
     public final List<Mod> mods;
     public final List<Key> keys;
 
@@ -78,6 +82,10 @@ public final class SnitchConfig {
 
         this.logConsole = c.getBoolean("logging.console", true);
         this.logCleanPlayers = c.getBoolean("logging.log-clean-players", false);
+
+        this.updateCheckEnabled = c.getBoolean("update-checker.enabled", true);
+        this.updateAutoUpdate = c.getBoolean("update-checker.auto-update", true);
+        this.updateCheckIntervalTicks = Math.max(0, c.getInt("update-checker.check-interval-ticks", 432000));
 
         this.mods = new ArrayList<>();
         this.keys = new ArrayList<>();

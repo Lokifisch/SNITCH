@@ -14,11 +14,15 @@ import org.bukkit.scheduler.BukkitTask;
  */
 public final class SnitchPlugin extends JavaPlugin {
 
+    private static final String UPDATE_REPO = "Lokifisch/SNITCH";
+
     private volatile SnitchConfig config;
     private ProbeService probes;
     private DetectionHandler detections;
+    private UpdateChecker updateChecker;
     private BukkitTask sweeper;
     private BukkitTask rescanner;
+    private BukkitTask updateTask;
 
     @Override
     public void onEnable() {
@@ -28,6 +32,7 @@ public final class SnitchPlugin extends JavaPlugin {
         ProtocolManager protocol = ProtocolLibrary.getProtocolManager();
         this.probes = new ProbeService(this, protocol);
         this.detections = new DetectionHandler(this);
+        this.updateChecker = new UpdateChecker(this, UPDATE_REPO, getFile());
 
         protocol.addPacketListener(new SignUpdateListener(this));
         getServer().getPluginManager().registerEvents(new JoinListener(this), this);
@@ -41,6 +46,7 @@ public final class SnitchPlugin extends JavaPlugin {
                 () -> probes.sweepExpired(), 100L, 100L);
 
         startRescanner();
+        startUpdateChecker();
 
         getLogger().info("SNITCH enabled. Probing " + config.keys.size()
                 + " translation keys via MC-265322.");
@@ -66,10 +72,28 @@ public final class SnitchPlugin extends JavaPlugin {
         }
     }
 
+    private void startUpdateChecker() {
+        if (updateTask != null) {
+            updateTask.cancel();
+            updateTask = null;
+        }
+        if (!config.updateCheckEnabled) {
+            return;
+        }
+        updateChecker.checkAsync(config.updateAutoUpdate, null);
+        int interval = config.updateCheckIntervalTicks;
+        if (interval > 0) {
+            this.updateTask = getServer().getScheduler().runTaskTimer(this,
+                    () -> updateChecker.checkAsync(config.updateAutoUpdate, null),
+                    interval, interval);
+        }
+    }
+
     public void reloadSnitchConfig() {
         reloadConfig();
         this.config = new SnitchConfig(getConfig());
         startRescanner();
+        startUpdateChecker();
     }
 
     /**
@@ -140,5 +164,9 @@ public final class SnitchPlugin extends JavaPlugin {
 
     public DetectionHandler detections() {
         return detections;
+    }
+
+    public UpdateChecker updateChecker() {
+        return updateChecker;
     }
 }

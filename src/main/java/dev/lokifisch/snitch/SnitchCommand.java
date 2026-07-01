@@ -21,11 +21,12 @@ import java.util.Map;
  * /snitch scan   [player]
  * /snitch reload
  * /snitch info
+ * /snitch update [check]
  */
 public final class SnitchCommand implements CommandExecutor, TabCompleter {
 
     private static final List<String> SUBS =
-            Arrays.asList("list", "add", "remove", "removemod", "scan", "reload", "info");
+            Arrays.asList("list", "add", "remove", "removemod", "scan", "reload", "info", "update");
 
     private final SnitchPlugin plugin;
 
@@ -46,6 +47,7 @@ public final class SnitchCommand implements CommandExecutor, TabCompleter {
             case "removemod" -> removeMod(sender, args);
             case "scan"      -> scan(sender, args);
             case "info"      -> info(sender);
+            case "update"    -> update(sender, args);
             default          -> usage(sender);
         }
         return true;
@@ -60,6 +62,7 @@ public final class SnitchCommand implements CommandExecutor, TabCompleter {
         s.sendMessage("§7  /snitch scan [player]");
         s.sendMessage("§7  /snitch reload");
         s.sendMessage("§7  /snitch info");
+        s.sendMessage("§7  /snitch update [check]");
     }
 
     private void reload(CommandSender s) {
@@ -153,6 +156,31 @@ public final class SnitchCommand implements CommandExecutor, TabCompleter {
                 s.sendMessage("§7  flag " + flag + " → " + action));
     }
 
+    private void update(CommandSender s, String[] args) {
+        UpdateChecker checker = plugin.updateChecker();
+        if (args.length >= 2 && args[1].equalsIgnoreCase("check")) {
+            s.sendMessage("§e[SNITCH] Checking for updates...");
+            checker.checkAsync(plugin.config().updateAutoUpdate, () -> reportUpdateStatus(s, checker));
+            return;
+        }
+        reportUpdateStatus(s, checker);
+    }
+
+    private void reportUpdateStatus(CommandSender s, UpdateChecker checker) {
+        if (!checker.isUpdateAvailable()) {
+            s.sendMessage("§a[SNITCH] Running the latest version (v" + checker.getCurrentVersion() + ").");
+            return;
+        }
+        s.sendMessage("§e[SNITCH] Update available: §fv" + checker.getLatestVersion()
+                + " §7(currently v" + checker.getCurrentVersion() + ")");
+        s.sendMessage("§7  " + checker.getReleaseUrl());
+        if (checker.isStaged()) {
+            s.sendMessage("§a[SNITCH] Already downloaded - restart the server to apply it.");
+        } else {
+            s.sendMessage("§7Enable §fupdate-checker.auto-update §7in config.yml to stage it automatically.");
+        }
+    }
+
     @Override
     public List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command,
                                       @NotNull String alias, @NotNull String[] args) {
@@ -172,6 +200,8 @@ public final class SnitchCommand implements CommandExecutor, TabCompleter {
                 StringUtil.copyPartialMatches(args[1], names, out);
             } else if (sub.equals("remove") || sub.equals("removemod") || sub.equals("add")) {
                 StringUtil.copyPartialMatches(args[1], modNames, out);
+            } else if (sub.equals("update")) {
+                StringUtil.copyPartialMatches(args[1], List.of("check"), out);
             }
             return out;
         }
