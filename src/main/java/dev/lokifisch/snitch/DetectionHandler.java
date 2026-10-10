@@ -8,6 +8,7 @@ import org.bukkit.entity.Player;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -25,13 +26,22 @@ public final class DetectionHandler {
     // player -> (mod -> flag count)
     private final Map<UUID, Map<String, Integer>> flags = new ConcurrentHashMap<>();
 
+    // player -> mods already flagged on the current connection (one strike per mod per join)
+    private final Map<UUID, Set<String>> thisConnection = new ConcurrentHashMap<>();
+
     public DetectionHandler(SnitchPlugin plugin) {
         this.plugin = plugin;
     }
 
     public void flag(Player player, String mod, String key, String evidence) {
+        // Client-controlled: keep it inert in console commands and log lines.
+        evidence = evidence.replaceAll("[^A-Za-z0-9_.-]", "?");
+        if (evidence.length() > 64) evidence = evidence.substring(0, 64);
         if (!player.isOnline()) return;
         if (player.hasPermission("snitch.bypass.action")) return;
+
+        // Several keys of one mod resolving in the same scan is ONE offence, not a ban.
+        if (!thisConnection.computeIfAbsent(player.getUniqueId(), k -> ConcurrentHashMap.newKeySet()).add(mod)) return;
 
         SnitchConfig cfg = plugin.config();
 
@@ -97,11 +107,17 @@ public final class DetectionHandler {
                 .replace("%server%", server);
     }
 
+    public void disconnect(UUID player) {
+        thisConnection.remove(player);
+    }
+
     public void reset(UUID player) {
         flags.remove(player);
+        thisConnection.remove(player);
     }
 
     public void resetAll() {
         flags.clear();
+        thisConnection.clear();
     }
 }

@@ -20,6 +20,8 @@ public final class ProbeSession {
     public final String[] modNames = new String[4];
     public final String[] keys = new String[4];
     public final long createdTick;
+    /** Set once the first reply is consumed; later duplicates are ignored. */
+    public final java.util.concurrent.atomic.AtomicBoolean done = new java.util.concurrent.atomic.AtomicBoolean();
 
     public ProbeSession(UUID player, BlockPosition position, long createdTick) {
         this.player = player;

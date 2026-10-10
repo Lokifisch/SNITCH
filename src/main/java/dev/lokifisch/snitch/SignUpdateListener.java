@@ -43,9 +43,12 @@ public final class SignUpdateListener extends PacketAdapter {
         String[] lines = event.getPacket().getStringArrays().read(0);
         // This was a fabricated sign; never let the server process it as a real edit.
         event.setCancelled(true);
+        // Late reply to an earlier timed-out batch: don't attribute it or advance the queue.
+        if (lines != null && plugin.probes().isStale(uuid, session, lines)) return;
+        if (!session.done.compareAndSet(false, true)) return; // duplicate reply
         // Advance to the next queued batch (or clear if none remain).
         plugin.getServer().getScheduler().runTask(plugin,
-                () -> plugin.probes().onBatchComplete(uuid));
+                () -> plugin.probes().onBatchComplete(uuid, session));
 
         if (lines == null) {
             return;
@@ -58,7 +61,8 @@ public final class SignUpdateListener extends PacketAdapter {
             }
             String returned = lines[i] == null ? "" : lines[i].trim();
             String fallback = session.fallbacks[i] == null ? "" : session.fallbacks[i].trim();
-            if (!returned.isEmpty() && !returned.equals(fallback)) {
+            // Echoing the raw key means the client didn't resolve it (e.g. no fallback support): clean.
+            if (!returned.isEmpty() && !returned.equals(fallback) && !returned.equals(session.keys[i])) {
                 clean = false;
                 final String mod = session.modNames[i];
                 final String key = session.keys[i];

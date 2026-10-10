@@ -42,6 +42,7 @@ public final class JoinListener implements Listener {
     public void onQuit(PlayerQuitEvent event) {
         UUID uuid = event.getPlayer().getUniqueId();
         plugin.probes().clearSession(uuid);
+        plugin.detections().disconnect(uuid);
         // Strikes intentionally persist for the session; reset them here if you
         // prefer per-connection counting instead.
     }

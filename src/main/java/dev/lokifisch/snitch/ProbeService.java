@@ -50,6 +50,11 @@ public final class ProbeService {
     private final ConcurrentHashMap<UUID, Deque<List<SnitchConfig.Key>>> pending =
             new ConcurrentHashMap<>();
 
+    /** Every fallback word ever sent to a player this connection, to spot late replies to old batches. */
+    private final ConcurrentHashMap<UUID, java.util.Set<String>> issued = new ConcurrentHashMap<>();
+
+    private final java.util.concurrent.atomic.AtomicInteger batchSeq = new java.util.concurrent.atomic.AtomicInteger();
+
     public ProbeService(SnitchPlugin plugin, ProtocolManager protocol) {
         this.plugin = plugin;
         this.protocol = protocol;
@@ -60,8 +65,24 @@ public final class ProbeService {
     }
 
     /** Called by SignUpdateListener after a batch response is processed. */
-    public void onBatchComplete(UUID playerUuid) {
-        active.remove(playerUuid);
+    public void onBatchComplete(UUID playerUuid, ProbeSession session) {
+        if (active.remove(playerUuid, session)) advance(playerUuid);
+    }
+
+    /** True if the reply carries a fallback from a different batch than {@code session}. */
+    public boolean isStale(UUID player, ProbeSession session, String[] lines) {
+        java.util.Set<String> all = issued.get(player);
+        if (all == null) return false;
+        java.util.List<String> mine = java.util.Arrays.asList(session.fallbacks);
+        for (String l : lines) {
+            String t = l == null ? "" : l.trim();
+            if (!t.isEmpty() && all.contains(t) && !mine.contains(t)) return true;
+        }
+        return false;
+    }
+
+    private void advance(UUID playerUuid) {
+        if (active.containsKey(playerUuid)) return; // a newer batch is already in flight
         Deque<List<SnitchConfig.Key>> queue = pending.get(playerUuid);
         if (queue == null || queue.isEmpty()) {
             pending.remove(playerUuid);
@@ -77,6 +98,7 @@ public final class ProbeService {
     public void clearSession(UUID player) {
         active.remove(player);
         pending.remove(player);
+        issued.remove(player);
     }
 
     public void sweepExpired() {
@@ -87,7 +109,7 @@ public final class ProbeService {
                 // Timed-out session: try to advance to next queued batch.
                 UUID uuid = e.getKey();
                 plugin.getServer().getScheduler().runTask(plugin,
-                        () -> onBatchComplete(uuid));
+                        () -> advance(uuid));
                 return true;
             }
             return false;
@@ -97,6 +119,7 @@ public final class ProbeService {
     public void clearAll() {
         active.clear();
         pending.clear();
+        issued.clear();
     }
 
     /** Kick off a full scan of a player: every configured key, four per sign. */
@@ -118,7 +141,7 @@ public final class ProbeService {
         Deque<List<SnitchConfig.Key>> queue =
                 pending.computeIfAbsent(uuid, k -> new ArrayDeque<>());
 
-        if (active.containsKey(uuid)) {
+        if (active.containsKey(uuid) || !queue.isEmpty()) {
             // A batch is already in-flight; queue all new batches.
             queue.addAll(batches);
         } else {
@@ -134,7 +157,8 @@ public final class ProbeService {
     private void sendBatch(Player player, List<SnitchConfig.Key> batch) {
         World world = player.getWorld();
         Location loc = player.getLocation();
-        int x = loc.getBlockX();
+        // Rotate the probe position per batch so a late reply to an old batch can't match this one.
+        int x = loc.getBlockX() + (batchSeq.incrementAndGet() & 7);
         int z = loc.getBlockZ();
         int y = clamp(loc.getBlockY() + plugin.config().probeYOffset,
                 world.getMinHeight(), world.getMaxHeight() - 1);
@@ -151,6 +175,7 @@ public final class ProbeService {
                 SnitchConfig.Key key = batch.get(i);
                 String fallback = randomFallback();
                 session.fallbacks[i] = fallback;
+                issued.computeIfAbsent(player.getUniqueId(), k -> ConcurrentHashMap.newKeySet()).add(fallback);
                 session.modNames[i] = key.mod();
                 session.keys[i] = key.translationKey();
                 lines.add(Component.translatable()
