@@ -22,11 +22,12 @@ import java.util.Map;
  * /snitch reload
  * /snitch info
  * /snitch update [check]
+ * /snitch gui
  */
 public final class SnitchCommand implements CommandExecutor, TabCompleter {
 
     private static final List<String> SUBS =
-            Arrays.asList("list", "add", "remove", "removemod", "scan", "reload", "info", "update");
+            Arrays.asList("list", "add", "remove", "removemod", "scan", "reload", "info", "update", "gui");
 
     private final SnitchPlugin plugin;
 
@@ -48,13 +49,14 @@ public final class SnitchCommand implements CommandExecutor, TabCompleter {
             case "scan"      -> scan(sender, args);
             case "info"      -> info(sender);
             case "update"    -> update(sender, args);
+            case "gui"       -> gui(sender);
             default          -> usage(sender);
         }
         return true;
     }
 
     private void usage(CommandSender s) {
-        s.sendMessage("§e[SNITCH] commands:");
+        s.sendMessage(plugin.prefix() + "§ecommands:");
         s.sendMessage("§7  /snitch list");
         s.sendMessage("§7  /snitch add <mod> <translation.key>");
         s.sendMessage("§7  /snitch remove <mod> <translation.key>");
@@ -63,11 +65,17 @@ public final class SnitchCommand implements CommandExecutor, TabCompleter {
         s.sendMessage("§7  /snitch reload");
         s.sendMessage("§7  /snitch info");
         s.sendMessage("§7  /snitch update [check]");
+        s.sendMessage("§7  /snitch gui");
+    }
+
+    private void gui(CommandSender s) {
+        if (s instanceof Player p) plugin.gui().open(p);
+        else s.sendMessage(plugin.prefix() + "§cThe GUI is only available in game.");
     }
 
     private void reload(CommandSender s) {
         plugin.reloadSnitchConfig();
-        s.sendMessage("§a[SNITCH] Config reloaded. "
+        s.sendMessage(plugin.prefix() + "§aConfig reloaded. "
                 + plugin.config().mods.size() + " mods, "
                 + plugin.config().keys.size() + " keys.");
     }
@@ -75,10 +83,10 @@ public final class SnitchCommand implements CommandExecutor, TabCompleter {
     private void list(CommandSender s) {
         List<SnitchConfig.Mod> mods = plugin.config().mods;
         if (mods.isEmpty()) {
-            s.sendMessage("§e[SNITCH] No mods configured.");
+            s.sendMessage(plugin.prefix() + "§eNo mods configured.");
             return;
         }
-        s.sendMessage("§e[SNITCH] " + mods.size() + " mod(s), "
+        s.sendMessage(plugin.prefix() + "§e" + mods.size() + " mod(s), "
                 + plugin.config().keys.size() + " key(s) total:");
         for (SnitchConfig.Mod m : mods) {
             s.sendMessage("§f  " + m.name() + "§8:");
@@ -90,44 +98,44 @@ public final class SnitchCommand implements CommandExecutor, TabCompleter {
 
     private void add(CommandSender s, String[] args) {
         if (args.length < 3) {
-            s.sendMessage("§c[SNITCH] Usage: /snitch add <mod> <translation.key>");
+            s.sendMessage(plugin.prefix() + "§cUsage: /snitch add <mod> <translation.key>");
             return;
         }
         String mod = args[1];
         String key = args[2];
         if (!plugin.addKey(mod, key)) {
-            s.sendMessage("§c[SNITCH] Invalid mod name (no dots or spaces): " + mod);
+            s.sendMessage(plugin.prefix() + "§cInvalid mod name or key (letters, digits, _ . : - only).");
             return;
         }
-        s.sendMessage("§a[SNITCH] Added key §7" + key + " §ato §f" + mod
+        s.sendMessage(plugin.prefix() + "§aAdded key §7" + key + " §ato §f" + mod
                 + " §a(" + plugin.config().keys.size() + " keys total).");
     }
 
     private void remove(CommandSender s, String[] args) {
         if (args.length < 3) {
-            s.sendMessage("§c[SNITCH] Usage: /snitch remove <mod> <translation.key>");
+            s.sendMessage(plugin.prefix() + "§cUsage: /snitch remove <mod> <translation.key>");
             return;
         }
         String mod = args[1];
         String key = args[2];
         if (!plugin.removeKey(mod, key)) {
-            s.sendMessage("§c[SNITCH] Key not found: " + key + " under mod " + mod);
+            s.sendMessage(plugin.prefix() + "§cKey not found: " + key + " under mod " + mod);
             return;
         }
-        s.sendMessage("§a[SNITCH] Removed key §7" + key + " §afrom §f" + mod + "§a.");
+        s.sendMessage(plugin.prefix() + "§aRemoved key §7" + key + " §afrom §f" + mod + "§a.");
     }
 
     private void removeMod(CommandSender s, String[] args) {
         if (args.length < 2) {
-            s.sendMessage("§c[SNITCH] Usage: /snitch removemod <mod>");
+            s.sendMessage(plugin.prefix() + "§cUsage: /snitch removemod <mod>");
             return;
         }
         String mod = args[1];
         if (!plugin.removeMod(mod)) {
-            s.sendMessage("§c[SNITCH] Mod not found: " + mod);
+            s.sendMessage(plugin.prefix() + "§cMod not found: " + mod);
             return;
         }
-        s.sendMessage("§a[SNITCH] Removed mod §f" + mod
+        s.sendMessage(plugin.prefix() + "§aRemoved mod §f" + mod
                 + " §a(" + plugin.config().keys.size() + " keys remaining).");
     }
 
@@ -135,20 +143,20 @@ public final class SnitchCommand implements CommandExecutor, TabCompleter {
         Player target;
         if (args.length >= 2) {
             target = plugin.getServer().getPlayerExact(args[1]);
-            if (target == null) { s.sendMessage("§c[SNITCH] Player not found: " + args[1]); return; }
+            if (target == null) { s.sendMessage(plugin.prefix() + "§cPlayer not found: " + args[1]); return; }
         } else if (s instanceof Player p) {
             target = p;
         } else {
-            s.sendMessage("§c[SNITCH] Console must specify a player: /snitch scan <player>");
+            s.sendMessage(plugin.prefix() + "§cConsole must specify a player: /snitch scan <player>");
             return;
         }
         plugin.probes().scan(target);
-        s.sendMessage("§a[SNITCH] Scanning " + target.getName() + ".");
+        s.sendMessage(plugin.prefix() + "§aScanning " + target.getName() + ".");
     }
 
     private void info(CommandSender s) {
         SnitchConfig cfg = plugin.config();
-        s.sendMessage("§e[SNITCH] §7server=" + cfg.serverName
+        s.sendMessage(plugin.prefix() + "§e§7server=" + cfg.serverName
                 + " mods=" + cfg.mods.size()
                 + " keys=" + cfg.keys.size()
                 + " delay=" + cfg.delayTicks + "t");
@@ -159,7 +167,7 @@ public final class SnitchCommand implements CommandExecutor, TabCompleter {
     private void update(CommandSender s, String[] args) {
         UpdateChecker checker = plugin.updateChecker();
         if (args.length >= 2 && args[1].equalsIgnoreCase("check")) {
-            s.sendMessage("§e[SNITCH] Checking for updates...");
+            s.sendMessage(plugin.prefix() + "§eChecking for updates...");
             checker.checkAsync(plugin.config().updateAutoUpdate, () -> reportUpdateStatus(s, checker));
             return;
         }
@@ -168,14 +176,14 @@ public final class SnitchCommand implements CommandExecutor, TabCompleter {
 
     private void reportUpdateStatus(CommandSender s, UpdateChecker checker) {
         if (!checker.isUpdateAvailable()) {
-            s.sendMessage("§a[SNITCH] Running the latest version (v" + checker.getCurrentVersion() + ").");
+            s.sendMessage(plugin.prefix() + "§aRunning the latest version (v" + checker.getCurrentVersion() + ").");
             return;
         }
-        s.sendMessage("§e[SNITCH] Update available: §fv" + checker.getLatestVersion()
+        s.sendMessage(plugin.prefix() + "§eUpdate available: §fv" + checker.getLatestVersion()
                 + " §7(currently v" + checker.getCurrentVersion() + ")");
         s.sendMessage("§7  " + checker.getReleaseUrl());
         if (checker.isStaged()) {
-            s.sendMessage("§a[SNITCH] Already downloaded - restart the server to apply it.");
+            s.sendMessage(plugin.prefix() + "§aAlready downloaded - restart the server to apply it.");
         } else {
             s.sendMessage("§7Enable §fupdate-checker.auto-update §7in config.yml to stage it automatically.");
         }

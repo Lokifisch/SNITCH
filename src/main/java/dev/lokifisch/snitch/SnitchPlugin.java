@@ -20,6 +20,7 @@ public final class SnitchPlugin extends JavaPlugin {
     private ProbeService probes;
     private DetectionHandler detections;
     private UpdateChecker updateChecker;
+    private SnitchGui gui;
     private BukkitTask sweeper;
     private BukkitTask rescanner;
     private BukkitTask updateTask;
@@ -36,6 +37,8 @@ public final class SnitchPlugin extends JavaPlugin {
 
         protocol.addPacketListener(new SignUpdateListener(this));
         getServer().getPluginManager().registerEvents(new JoinListener(this), this);
+        this.gui = new SnitchGui(this);
+        getServer().getPluginManager().registerEvents(gui, this);
 
         SnitchCommand cmd = new SnitchCommand(this);
         getCommand("snitch").setExecutor(cmd);
@@ -89,6 +92,18 @@ public final class SnitchPlugin extends JavaPlugin {
         }
     }
 
+    /** Re-applies getConfig() after an in-memory edit (GUI); only re-checks updates when asked. */
+    public void refreshConfig(boolean restartUpdates) {
+        this.config = new SnitchConfig(getConfig());
+        startRescanner();
+        if (restartUpdates) startUpdateChecker();
+    }
+
+    /** Colour-translated message prefix from config. */
+    public String prefix() {
+        return config.prefix.replaceAll("&([0-9a-fk-orA-F])", "§$1");
+    }
+
     public void reloadSnitchConfig() {
         reloadConfig();
         this.config = new SnitchConfig(getConfig());
@@ -101,7 +116,8 @@ public final class SnitchPlugin extends JavaPlugin {
      * Returns false if the mod name contains dots or spaces (would break the YAML path).
      */
     public boolean addKey(String mod, String translationKey) {
-        if (mod.contains(".") || mod.contains(" ")) {
+        // Names/keys end up in config paths and console-command placeholders: keep them inert.
+        if (!mod.matches("[A-Za-z0-9_-]{1,32}") || !translationKey.matches("[A-Za-z0-9_.:-]{1,128}")) {
             return false;
         }
         String path = "mods." + mod;
@@ -110,7 +126,7 @@ public final class SnitchPlugin extends JavaPlugin {
             current.add(translationKey);
             getConfig().set(path, current);
             saveConfig();
-            reloadSnitchConfig();
+            refreshConfig(false);
         }
         return true;
     }
@@ -135,7 +151,7 @@ public final class SnitchPlugin extends JavaPlugin {
             getConfig().set(path, current);
         }
         saveConfig();
-        reloadSnitchConfig();
+        refreshConfig(false);
         return true;
     }
 
@@ -150,7 +166,7 @@ public final class SnitchPlugin extends JavaPlugin {
         }
         getConfig().set(path, null);
         saveConfig();
-        reloadSnitchConfig();
+        refreshConfig(false);
         return true;
     }
 
@@ -164,6 +180,10 @@ public final class SnitchPlugin extends JavaPlugin {
 
     public DetectionHandler detections() {
         return detections;
+    }
+
+    public SnitchGui gui() {
+        return gui;
     }
 
     public UpdateChecker updateChecker() {

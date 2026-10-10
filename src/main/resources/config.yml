@@ -2,6 +2,9 @@
 #  SNITCH  -  Server-side Notifier Inspecting Translation To Catch Hackers
 # ============================================================================
 
+# Prefix shown before every SNITCH chat message (& colour codes).
+prefix: "&e[SNITCH] "
+
 # Name shown in kick/ban messages (%server% placeholder).
 server-name: "My Server"
 

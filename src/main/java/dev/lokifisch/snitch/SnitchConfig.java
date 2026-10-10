@@ -22,6 +22,7 @@ public final class SnitchConfig {
     /** Flat (mod, key) pair — used by ProbeService to fill sign lines. */
     public record Key(String mod, String translationKey) {}
 
+    public final String prefix;
     public final String serverName;
 
     public final int delayTicks;
@@ -49,6 +50,7 @@ public final class SnitchConfig {
     public final List<Key> keys;
 
     public SnitchConfig(FileConfiguration c) {
+        this.prefix = c.getString("prefix", "&e[SNITCH] ");
         this.serverName = c.getString("server-name", "My Server");
 
         this.delayTicks = Math.max(0, c.getInt("detection.delay-ticks", 40));
